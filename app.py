@@ -12,8 +12,13 @@ import cloudinary.uploader
 # Initialize Flask app
 app = Flask(__name__)
 # Enable CORS for all routes
-CORS(app, origins=["https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app/home"])  # Replace with your frontend URL
-
+CORS(
+    app,
+    origins=["https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app"],  # Replace with your frontend URL
+    methods=["GET", "POST", "OPTIONS"],  # Allow specific HTTP methods
+    allow_headers=["Content-Type"],  # Allow specific headers
+    supports_credentials=True  # Allow cookies and credentials
+)
 # MongoDB connection
 client = MongoClient("mongodb+srv://kr96aditya:qwerty96@cluster0.dc9e2.mongodb.net/pet_app?retryWrites=true&w=majority")
 db = client.pet_app
@@ -75,8 +80,23 @@ def compare_features(features1, features2):
         logging.error(f"Error in compare_features: {e}")
         return 0.0
 
-@app.route('/register', methods=['POST'])
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    return response
+
+@app.route('/register', methods=['POST', 'OPTIONS'])
 def register_animal():
+    if request.method == 'OPTIONS':
+        # Handle preflight request
+        response = jsonify({'success': True})
+        response.headers.add('Access-Control-Allow-Origin', 'https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response, 200
+
     try:
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'No image provided'}), 400
@@ -84,13 +104,12 @@ def register_animal():
         file = request.files['image']
         if not file:
             return jsonify({'success': False, 'error': 'No selected file'}), 400
-        
+
         # Upload image to Cloudinary
         upload_result = cloudinary.uploader.upload(file)
         image_url = upload_result['secure_url']
 
         # Read and process image
-        file.seek(0)  # Reset file pointer to read it again
         image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
         features = extract_features(image)
 
@@ -103,7 +122,7 @@ def register_animal():
         # Create database entry
         entry = {
             'animal_id': animal_id,
-            'image_url': image_url,  # Store the Cloudinary URL
+            'image_url': image_url,
             'features': features,
             'registered_at': datetime.now().isoformat()
         }
@@ -111,12 +130,14 @@ def register_animal():
         # Insert into MongoDB
         animals_collection.insert_one(entry)
 
-        return jsonify({
+        response = jsonify({
             'success': True,
             'animal_id': animal_id,
-            'image_url': image_url,  # Return the Cloudinary URL to the frontend
+            'image_url': image_url,
             'registered_at': entry['registered_at']
         })
+        response.headers.add('Access-Control-Allow-Origin', 'https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app')
+        return response
 
     except Exception as e:
         logging.error(f"Error in register: {e}")
