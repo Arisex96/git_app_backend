@@ -11,7 +11,8 @@ import cloudinary.uploader
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for Next.js frontend
+# Enable CORS for all routes
+CORS(app, origins=["https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app/home"])  # Replace with your frontend URL
 
 # MongoDB connection
 client = MongoClient("mongodb+srv://kr96aditya:qwerty96@cluster0.dc9e2.mongodb.net/pet_app?retryWrites=true&w=majority")
