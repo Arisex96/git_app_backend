@@ -1,0 +1,9 @@
+Flask==3.0.0
+Flask-Cors==4.0.0
+numpy==1.26.4
+opencv-python==4.9.0.80
+pymongo==4.6.2
+tensorflow==2.18.0
+tensorflow-io-gcs-filesystem==0.31.0
+cloudinary==1.37.0
+gunicorn==21.2.0
