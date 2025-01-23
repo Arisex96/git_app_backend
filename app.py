@@ -87,6 +87,12 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     return response
 
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/register', methods=['POST', 'OPTIONS'])
 def register_animal():
     if request.method == 'OPTIONS':
@@ -104,6 +110,15 @@ def register_animal():
         file = request.files['image']
         if not file:
             return jsonify({'success': False, 'error': 'No selected file'}), 400
+        
+        # Validate file type
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'Invalid file type. Only PNG, JPG, and JPEG are allowed.'}), 400
+
+        # Read and process image
+        file_data = file.read()
+        if not file_data:
+            return jsonify({'success': False, 'error': 'Empty file data'}), 400
 
         # Upload image to Cloudinary
         upload_result = cloudinary.uploader.upload(file)
