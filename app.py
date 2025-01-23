@@ -11,6 +11,7 @@ import cloudinary.uploader
 
 # Initialize Flask app
 app = Flask(__name__)
+
 # Enable CORS for all routes
 CORS(
     app,
@@ -19,6 +20,7 @@ CORS(
     allow_headers=["Content-Type"],  # Allow specific headers
     supports_credentials=True  # Allow cookies and credentials
 )
+
 # MongoDB connection
 client = MongoClient("mongodb+srv://kr96aditya:qwerty96@cluster0.dc9e2.mongodb.net/pet_app?retryWrites=true&w=majority")
 db = client.pet_app
@@ -87,7 +89,6 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
     return response
 
-
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
@@ -110,24 +111,27 @@ def register_animal():
         file = request.files['image']
         if not file:
             return jsonify({'success': False, 'error': 'No selected file'}), 400
-        
+
         # Validate file type
         if not allowed_file(file.filename):
             return jsonify({'success': False, 'error': 'Invalid file type. Only PNG, JPG, and JPEG are allowed.'}), 400
 
-        # Read and process image
+        # Read file data
         file_data = file.read()
         if not file_data:
             return jsonify({'success': False, 'error': 'Empty file data'}), 400
 
         # Upload image to Cloudinary
-        upload_result = cloudinary.uploader.upload(file)
+        upload_result = cloudinary.uploader.upload(file_data, resource_type="image")
         image_url = upload_result['secure_url']
 
-        # Read and process image
-        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-        features = extract_features(image)
+        # Decode image for feature extraction
+        image = cv2.imdecode(np.frombuffer(file_data, np.uint8), cv2.IMREAD_COLOR)
+        if image is None:
+            return jsonify({'success': False, 'error': 'Failed to decode image'}), 400
 
+        # Extract features
+        features = extract_features(image)
         if features is None:
             return jsonify({'success': False, 'error': 'Failed to extract features'}), 400
 
@@ -151,15 +155,22 @@ def register_animal():
             'image_url': image_url,
             'registered_at': entry['registered_at']
         })
-        response.headers.add('Access-Control-Allow-Origin', 'https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app')
         return response
 
     except Exception as e:
         logging.error(f"Error in register: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/search', methods=['POST'])
+@app.route('/search', methods=['POST', 'OPTIONS'])
 def search_animal():
+    if request.method == 'OPTIONS':
+        # Handle preflight request
+        response = jsonify({'success': True})
+        response.headers.add('Access-Control-Allow-Origin', 'https://pet-app-frontend-git-main-kr96adityas-projects.vercel.app')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response, 200
+
     try:
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'No image provided'}), 400
@@ -168,10 +179,18 @@ def search_animal():
         if not file:
             return jsonify({'success': False, 'error': 'No selected file'}), 400
 
-        # Read and process image
-        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-        search_features = extract_features(image)
+        # Read file data
+        file_data = file.read()
+        if not file_data:
+            return jsonify({'success': False, 'error': 'Empty file data'}), 400
 
+        # Decode image for feature extraction
+        image = cv2.imdecode(np.frombuffer(file_data, np.uint8), cv2.IMREAD_COLOR)
+        if image is None:
+            return jsonify({'success': False, 'error': 'Failed to decode image'}), 400
+
+        # Extract features
+        search_features = extract_features(image)
         if search_features is None:
             return jsonify({'success': False, 'error': 'Failed to extract features'}), 400
 
